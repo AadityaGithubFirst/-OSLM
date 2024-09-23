@@ -1,0 +1,46 @@
+---
+title: "36-600-A_Project"
+author: "Aaditya Hari Nair"
+date: "2024-09-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+df<-read.csv("cmu-sleep.csv")
+sapply(df, function(x) sum(is.na(x)))
+```
+As it can be seen that term_units and zterm_units_ZofZ are both having a lot of null value we can possible drop these two rows.
+```{r}
+library(tidyr)
+head(df)
+df = subset(df, select = -c(term_units, Zterm_units_ZofZ, subject_id))
+df$demo_race[is.na(df$demo_race)] <- median(df$demo_race,na.rm = TRUE)
+df$demo_gender[is.na(df$demo_gender)] <- median(df$demo_gender,na.rm = TRUE)
+df$demo_firstgen[is.na(df$demo_firstgen)] <- median(df$demo_firstgen,na.rm = TRUE)
+a<-unique(df$cohort)
+df$cohort<- as.integer(factor(df$cohort))
+names(df)
+for (i in names(df)){
+  print(table(df[i]))
+  }
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+df
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

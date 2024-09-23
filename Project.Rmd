@@ -40,7 +40,14 @@ for (i in names(df)){
 You can also embed plots, for example:
 
 ```{r}
-df
+suppressMessages(library(GGally))
+suppressMessages(library(cluster))
+df.new<-scale(df)
+set.seed(25)
+km2.out<-kmeans(df.new, 2, nstart = 20)
+ggpairs(df,progress=FALSE,mapping=aes(color=factor(km2.out$cluster)))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+
+```

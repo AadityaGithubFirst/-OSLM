@@ -1,5 +1,5 @@
 ---
-title: "36-600-A_Project"
+title: "36-600-A_Project_1"
 author: "Aaditya Hari Nair"
 date: "2024-09-23"
 output: html_document
@@ -9,11 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+The first step to EDA is to import the dataset into the programming language of choice otherwise you can't perform EDA. 
+In this step I also added all libraries that are going to be used during this entire Markdown file
+I installed a package called hot.deck. In this package there is a function called is.discrete which basically tells whether a given data is discrete or not this is done by checking if there are more than 10 unique values. If there are not more than 10 unique values then it can be said that the given data is discrete as in there is only a finite set of values that each point in the data frame can fit into.
 
 ```{r}
 df<-read.csv("cmu-sleep.csv")
@@ -28,11 +26,20 @@ for (i in names(df)){
     }
 }
 ```
+
+In the above cell I have added all the dependencies that 
 From this we can see that there are some discrete columns in our table that means that these columns don't have too many values. These columns are study, cohort, demo_race, demo_gender and demo_firstgen.
+
+
 ```{r}
 sapply(df, function(x) sum(is.na(x)))
 ```
-As it can be seen that term_units and zterm_units_ZofZ are both having a lot of null value we can possible drop these two rows. On top of that we also know that they are continuous variables making them difficult to easily replace with accurate values this is because of the fact that those points can become a little bit skewed.
+As it can be seen that term_units and zterm_units_ZofZ are both having a lot of null value we could drop these two rows. This is because of the fact that there are around 634 observations and if we were to remove 147 rows of this data it could cause some problems as the size fo the dataset is already so small. 
+On top of that we also know that they are continuous variables making them difficult to easily impute with accurate values this is because of the fact that those points can become a little bit skewed.
+Also rather than removing the row that has the demo_race and demo_gender row I have imputed it with the median value as the number that is missing is so low that it will not cause major skewing. Also on top that both values can be seen to be discrete variables. Which means that I can't take the mean value and replace it with that because of the fact then there will be definite problems that could arise.
+I also found that the cohort column is a character column which is going to make it difficult to find the correlation matrix for the dataset. Also the reason we can replace the values with integers is because of the fact that the cohort column is a discrete column which means that there is only a finite set of values and there is no range of values.
+After doing all of this I then check again if there are any null values present in the dataset. 
+
 ```{r}
 library(tidyr)
 head(df)
@@ -40,7 +47,7 @@ df = subset(df, select = -c(term_units, Zterm_units_ZofZ, subject_id))
 df$demo_race[is.na(df$demo_race)] <- median(df$demo_race,na.rm = TRUE)
 df$demo_gender[is.na(df$demo_gender)] <- median(df$demo_gender,na.rm = TRUE)
 df$demo_firstgen[is.na(df$demo_firstgen)] <- median(df$demo_firstgen,na.rm = TRUE)
-df$cohort<- as.integer(factor(df$cohort))
+df$cohort<-  as.integer(factor(df$cohort))
 sapply(df, function(x) sum(is.na(x)))
 head(df)
 ```
@@ -61,99 +68,18 @@ ggplot(data=df.disc,mapping=aes(x=value)) +
   geom_bar(fill="deeppink3") +
   facet_wrap(~key,scales='free')
 ```
-## Including Plots
 
-You can also embed plots, for example:
+From this graph it can be seen that there are very few rows that have a value of 2 in demo_firstgen.
+Therefore it could be proposed that all rows in the table wherein which the demo_firstgen is 2 can be dropped.
 ```{r}
 df.new<-scale(df)
 correl<- cor(df.new)
-corrplot(correl, method = "number")
-```
-
-```{r}
-ggplot(data=df.disc,mapping=aes(x=value,y=rep(df$term_gpa,length(disc)))) +
-  geom_boxplot(fill="darkorange1") +
-  xlab("Values") + ylab("Term GPA")+
-  facet_wrap(~key,scales='free')
-```
-
-```{r}
-detect_outlier <- function(x) {
-   
-  # calculate first quantile
-  Quantile1 <- quantile(x, probs=.25)
-   
-  # calculate third quantile
-  Quantile3 <- quantile(x, probs=.75)
-   
-  # calculate inter quartile range
-  IQR = Quantile3-Quantile1
-   
-  # return true or false
-  x > Quantile3 + (IQR*1.5) | x < Quantile1 - (IQR*1.5)
-}
- 
-# create remove outlier function
-remove_outlier <- function(df, columns=names(df)) {
-   
-  # for loop to traverse in columns vector
-  for (col in columns) {
-     
-    # remove observation if it satisfies outlier function
-    df <- df[!detect_outlier(df[[col]]), ]
-  }
-   
-  # return dataframe
-  print(df)
-}
-df.nooutliers<-remove_outlier(df)
-```
-
-
-
-```{r}
-df.quant.new <- gather(select(df.nooutliers, field))
-ggplot(data=df.quant.new,mapping=aes(x=value)) +
-  geom_histogram(fill="deepskyblue3",bins=30) +
-  facet_wrap(~key,scales='free')
-```
-
-Even after removing outliers from the dataset we can still see that the some columns present in the dataset are left skewed. This can also be seen on the term_gpa column which is the column that we are meant to be applying our prediction models after performing this EDA.
-In order to make the term_gpa column less skewed let us make it such that it is less skewed. To do this let us change the term_gpa column to a column which logarithm has been applied to. 
-```{r}
-for(i in 1:10){
-  hist(logb(df.nooutliers$term_gpa, i),col="darkseagreen2") +
-  facet_wrap(~key,scales='free')
-  }
-```
-
-
-```{r}
-df.disc.noout <- gather(select(df.nooutliers, disc))
-ggplot(data=df.disc.noout,mapping=aes(x=value)) +
-  geom_bar(fill="deeppink3",bins=30) +
-  facet_wrap(~key,scales='free')
-
-```
-From these graphs it can be seen that there is only one discrete variable in the demo_race and demo_firstgen class. As there is only one value in both of these columns we could drop them. We are dropping these to decrease computation.
-
-```{r}
-df.nooutliers = subset(df.nooutliers, select = -c(demo_race, demo_firstgen))
-disc<-c("study", "cohort", "demo_gender")
-df.disc.noout <- gather(select(df.nooutliers, disc))
-ggplot(data=df.disc.noout,mapping=aes(x=value,y=rep(df.nooutliers$term_gpa,3))) +
-  geom_boxplot(fill="darkorange1") +
-  xlab("Values") + ylab("Term GPA")+
-  facet_wrap(~key,scales='free')
-
-```
-```{r}
-df.new<-scale(df.nooutliers)
-correl<- cor(df.new)
-corrplot(correl, method = "number")
 corrplot(correl, method = "square")
+corrplot(correl, method = "number")
 ```
-Question marks are appearing and I have a feeling that it is due to the fact that the values on those squares are so small that it is almost approaching zero.
+```
 
+I have done two visualizations of the correlation matrix. One of them is the correlation matrix which uses the square method to actually use the visual properties of a graph to be able to better understand it.
+I have done a secondary graph which has numbers this is so that I can get a better understanding of the correlation values of each column with the other columns.
 
 

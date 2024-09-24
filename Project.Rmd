@@ -44,6 +44,7 @@ df$cohort<- as.integer(factor(df$cohort))
 sapply(df, function(x) sum(is.na(x)))
 head(df)
 ```
+
 ```{r}
 field<-setdiff(names(df), c("study", "cohort", "demo_race", "demo_gender", "demo_firstgen"))
 df.quant <- gather(select(df, field))
@@ -93,8 +94,7 @@ detect_outlier <- function(x) {
 }
  
 # create remove outlier function
-remove_outlier <- function(df,
-                            columns=names(df)) {
+remove_outlier <- function(df, columns=names(df)) {
    
   # for loop to traverse in columns vector
   for (col in columns) {
@@ -104,21 +104,28 @@ remove_outlier <- function(df,
   }
    
   # return dataframe
-  print("Remove outliers")
-  print(head(df))
+  print(df)
 }
 df.nooutliers<-remove_outlier(df)
 ```
+
+
+
 ```{r}
 df.quant.new <- gather(select(df.nooutliers, field))
 ggplot(data=df.quant.new,mapping=aes(x=value)) +
   geom_histogram(fill="deepskyblue3",bins=30) +
   facet_wrap(~key,scales='free')
 ```
+
 Even after removing outliers from the dataset we can still see that the some columns present in the dataset are left skewed. This can also be seen on the term_gpa column which is the column that we are meant to be applying our prediction models after performing this EDA.
-In order to make the term_gpa column less skewed let us make it such that it is 
-
-
+In order to make the term_gpa column less skewed let us make it such that it is less skewed. To do this let us change the term_gpa column to a column which logarithm has been applied to. 
+```{r}
+for(i in 1:10){
+  hist(logb(df.nooutliers$term_gpa, i),col="darkseagreen2") +
+  facet_wrap(~key,scales='free')
+  }
+```
 
 
 ```{r}

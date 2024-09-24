@@ -17,9 +17,22 @@ When you click the **Knit** button a document will be generated that includes bo
 
 ```{r}
 df<-read.csv("cmu-sleep.csv")
+suppressMessages(library(hot.deck))
+suppressMessages(library(tidyverse))
+suppressMessages(library(corrplot))
+summary(df)
+head(df)
+for (i in names(df)){
+  if(is.discrete(df[i])==TRUE){
+   print(i)
+    }
+}
+```
+From this we can see that there are some discrete columns in our table that means that these columns don't have too many values. These columns are study, cohort, demo_race, demo_gender and demo_firstgen.
+```{r}
 sapply(df, function(x) sum(is.na(x)))
 ```
-As it can be seen that term_units and zterm_units_ZofZ are both having a lot of null value we can possible drop these two rows.
+As it can be seen that term_units and zterm_units_ZofZ are both having a lot of null value we can possible drop these two rows. On top of that we also know that they are continuous variables making them difficult to easily replace with accurate values this is because of the fact that those points can become a little bit skewed.
 ```{r}
 library(tidyr)
 head(df)
@@ -27,27 +40,113 @@ df = subset(df, select = -c(term_units, Zterm_units_ZofZ, subject_id))
 df$demo_race[is.na(df$demo_race)] <- median(df$demo_race,na.rm = TRUE)
 df$demo_gender[is.na(df$demo_gender)] <- median(df$demo_gender,na.rm = TRUE)
 df$demo_firstgen[is.na(df$demo_firstgen)] <- median(df$demo_firstgen,na.rm = TRUE)
-a<-unique(df$cohort)
 df$cohort<- as.integer(factor(df$cohort))
-names(df)
-for (i in names(df)){
-  print(table(df[i]))
-  }
+sapply(df, function(x) sum(is.na(x)))
+head(df)
 ```
-
+```{r}
+field<-setdiff(names(df), c("study", "cohort", "demo_race", "demo_gender", "demo_firstgen"))
+df.quant <- gather(select(df, field))
+ggplot(data=df.quant,mapping=aes(x=value)) +
+  geom_histogram(fill="deepskyblue3",bins=30) +
+  facet_wrap(~key,scales='free')
+```
+From these graphs it can be seen that some of the values in the graph are not present which is causing some skewing in the data. In the first graph it can be seen that a lot of the responses in that tab is that people have not missed a single bedtime. This is causing the graph to come out as very skewed towards the left. 
+Now to plot the graphs of those values that are discrete
+```{r}
+disc<- setdiff(names(df), field)
+df.disc <- gather(df %>% select(disc))
+ggplot(data=df.disc,mapping=aes(x=value)) +
+  geom_bar(fill="deeppink3") +
+  facet_wrap(~key,scales='free')
+```
 ## Including Plots
 
 You can also embed plots, for example:
-
 ```{r}
-suppressMessages(library(GGally))
-suppressMessages(library(cluster))
 df.new<-scale(df)
-set.seed(25)
-km2.out<-kmeans(df.new, 2, nstart = 20)
-ggpairs(df,progress=FALSE,mapping=aes(color=factor(km2.out$cluster)))
+correl<- cor(df.new)
+corrplot(correl, method = "number")
 ```
 
 ```{r}
+ggplot(data=df.disc,mapping=aes(x=value,y=rep(df$term_gpa,length(disc)))) +
+  geom_boxplot(fill="darkorange1") +
+  xlab("Values") + ylab("Term GPA")+
+  facet_wrap(~key,scales='free')
+```
+
+```{r}
+detect_outlier <- function(x) {
+   
+  # calculate first quantile
+  Quantile1 <- quantile(x, probs=.25)
+   
+  # calculate third quantile
+  Quantile3 <- quantile(x, probs=.75)
+   
+  # calculate inter quartile range
+  IQR = Quantile3-Quantile1
+   
+  # return true or false
+  x > Quantile3 + (IQR*1.5) | x < Quantile1 - (IQR*1.5)
+}
+ 
+# create remove outlier function
+remove_outlier <- function(df,
+                            columns=names(df)) {
+   
+  # for loop to traverse in columns vector
+  for (col in columns) {
+     
+    # remove observation if it satisfies outlier function
+    df <- df[!detect_outlier(df[[col]]), ]
+  }
+   
+  # return dataframe
+  print("Remove outliers")
+  print(head(df))
+}
+df.nooutliers<-remove_outlier(df)
+```
+```{r}
+df.quant.new <- gather(select(df.nooutliers, field))
+ggplot(data=df.quant.new,mapping=aes(x=value)) +
+  geom_histogram(fill="deepskyblue3",bins=30) +
+  facet_wrap(~key,scales='free')
+```
+Even after removing outliers from the dataset we can still see that the some columns present in the dataset are left skewed. This can also be seen on the term_gpa column which is the column that we are meant to be applying our prediction models after performing this EDA.
+In order to make the term_gpa column less skewed let us make it such that it is 
+
+
+
+
+```{r}
+df.disc.noout <- gather(select(df.nooutliers, disc))
+ggplot(data=df.disc.noout,mapping=aes(x=value)) +
+  geom_bar(fill="deeppink3",bins=30) +
+  facet_wrap(~key,scales='free')
 
 ```
+From these graphs it can be seen that there is only one discrete variable in the demo_race and demo_firstgen class. As there is only one value in both of these columns we could drop them. We are dropping these to decrease computation.
+
+```{r}
+df.nooutliers = subset(df.nooutliers, select = -c(demo_race, demo_firstgen))
+disc<-c("study", "cohort", "demo_gender")
+df.disc.noout <- gather(select(df.nooutliers, disc))
+ggplot(data=df.disc.noout,mapping=aes(x=value,y=rep(df.nooutliers$term_gpa,3))) +
+  geom_boxplot(fill="darkorange1") +
+  xlab("Values") + ylab("Term GPA")+
+  facet_wrap(~key,scales='free')
+
+```
+```{r}
+df.new<-scale(df.nooutliers)
+correl<- cor(df.new)
+corrplot(correl, method = "number")
+corrplot(correl, method = "square")
+```
+Question marks are appearing and I have a feeling that it is due to the fact that the values on those squares are so small that it is almost approaching zero.
+
+
+

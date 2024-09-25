@@ -9,9 +9,15 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-The first step to EDA is to import the dataset into the programming language of choice otherwise you can't perform EDA. 
+
+## Loading the dataset
+
+The first step to EDA is to import the dataset into the programming language of choice otherwise there is no data to perform EDA with. 
 In this step I also added all libraries that are going to be used during this entire Markdown file
 I installed a package called hot.deck. In this package there is a function called is.discrete which basically tells whether a given data is discrete or not this is done by checking if there are more than 10 unique values. If there are not more than 10 unique values then it can be said that the given data is discrete as in there is only a finite set of values that each point in the data frame can fit into.
+In the above cell I have added all the dependencies that 
+From this we can see that there are some discrete columns in our table that means that these columns don't have too many values. These columns are study, cohort, demo_race, demo_gender and demo_firstgen.
+
 
 ```{r}
 df<-read.csv("cmu-sleep.csv")
@@ -27,29 +33,32 @@ for (i in names(df)){
 }
 ```
 
-In the above cell I have added all the dependencies that 
-From this we can see that there are some discrete columns in our table that means that these columns don't have too many values. These columns are study, cohort, demo_race, demo_gender and demo_firstgen.
+I now use sapply to find all the columns that have got null values and find the number of rows that have null values. This is so that I can decide what is the next step that I should do.
+Should I either:
 
+1. Delete all the null value columns
+2. Delete all the null value rows
+3. Impute data into the null values using the median() or mean() function
+
+You only use the first option if and only if you have so many null values in the column that honestly the amount of data that is understood from the columns is not a lot. You use the second method if there are only a few data points in the column that have a value of null.
+We use the third option in most cases wherein there are very few rows that are null. We use median when we know that the data is categorical (i.e., it is discrete) and we use mean when the data is continous.
 
 ```{r}
 sapply(df, function(x) sum(is.na(x)))
 ```
-As it can be seen that term_units and zterm_units_ZofZ are both having a lot of null value we could drop these two rows. This is because of the fact that there are around 634 observations and if we were to remove 147 rows of this data it could cause some problems as the size fo the dataset is already so small. 
+As it can be seen that term_units and zterm_units_ZofZ are both having a lot of null value we could drop these two rows. This is there being around 634 observations and if we were to remove 147 rows of this data it could cause some problems as the size fo the dataset is already so small. 
 On top of that we also know that they are continuous variables making them difficult to easily impute with accurate values this is because of the fact that those points can become a little bit skewed.
 Also rather than removing the row that has the demo_race and demo_gender row I have imputed it with the median value as the number that is missing is so low that it will not cause major skewing. Also on top that both values can be seen to be discrete variables. Which means that I can't take the mean value and replace it with that because of the fact then there will be definite problems that could arise.
 I also found that the cohort column is a character column which is going to make it difficult to find the correlation matrix for the dataset. Also the reason we can replace the values with integers is because of the fact that the cohort column is a discrete column which means that there is only a finite set of values and there is no range of values.
 After doing all of this I then check again if there are any null values present in the dataset. 
 
 ```{r}
-library(tidyr)
-head(df)
 df = subset(df, select = -c(term_units, Zterm_units_ZofZ, subject_id))
 df$demo_race[is.na(df$demo_race)] <- median(df$demo_race,na.rm = TRUE)
 df$demo_gender[is.na(df$demo_gender)] <- median(df$demo_gender,na.rm = TRUE)
 df$demo_firstgen[is.na(df$demo_firstgen)] <- median(df$demo_firstgen,na.rm = TRUE)
 df$cohort<-  as.integer(factor(df$cohort))
 sapply(df, function(x) sum(is.na(x)))
-head(df)
 ```
 
 ```{r}
@@ -110,6 +119,7 @@ ggplot(data=df.disc,mapping=aes(x=value)) +
   geom_bar(fill="deeppink3") +
   facet_wrap(~key,scales='free')
 ```
+
 From this it can be concluded that if you drop all the rows that have null values then a lot of rows which are part of study four have been removed which could cause you to think that it would be a good reason to remove the study group four. Also just like previously there is only a singular point in demo_firstgen that has value 2 so that value can be removed as it is an outlier.
 
 

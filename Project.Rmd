@@ -70,16 +70,78 @@ ggplot(data=df.disc,mapping=aes(x=value)) +
 ```
 
 From this graph it can be seen that there are very few rows that have a value of 2 in demo_firstgen.
-Therefore it could be proposed that all rows in the table wherein which the demo_firstgen is 2 can be dropped.
+Therefore it could be proposed that all rows in the table wherein which the demo_firstgen is 2 can be dropped. But it could also be replaced (imputed) with another value so as to actually save that data
 ```{r}
 df.new<-scale(df)
 correl<- cor(df.new)
 corrplot(correl, method = "square")
 corrplot(correl, method = "number")
 ```
-```
+
 
 I have done two visualizations of the correlation matrix. One of them is the correlation matrix which uses the square method to actually use the visual properties of a graph to be able to better understand it.
 I have done a secondary graph which has numbers this is so that I can get a better understanding of the correlation values of each column with the other columns.
+
+Now let me try it out in a different method wherein which rather than deleting the two columns with values term_units and Zterm_units_Z_of_Z I rather create two dataframes. One with term_units and Zterm_units_Z_of_Z and the other without these two units and redo all of the EDA again to check whether these columns are actually required
+
+
+```{r}
+df<-read.csv("cmu-sleep.csv")
+df.withnona<-df %>% drop_na(term_units)
+df.withnona$demo_race[is.na(df.withnona$demo_race)] <- median(df.withnona$demo_race,na.rm = TRUE)
+df.withnona$demo_gender[is.na(df.withnona$demo_gender)] <- median(df.withnona$demo_gender,na.rm = TRUE)
+df.withnona$demo_firstgen[is.na(df.withnona$demo_firstgen)] <- median(df.withnona$demo_firstgen,na.rm = TRUE)
+df.withnona$cohort<-  as.integer(factor(df.withnona$cohort))
+sapply(df.withnona, function(x) sum(is.na(x)))
+head(df.withnona)
+```
+
+```{r}
+field<-setdiff(names(df.withnona), c("study", "cohort", "demo_race", "demo_gender", "demo_firstgen"))
+df.quant <- gather(df.withnona %>% select(field))
+ggplot(data=df.quant,mapping=aes(x=value)) +
+  geom_histogram(fill="deepskyblue3",bins=30) +
+  facet_wrap(~key,scales='free')
+```
+```{r}
+disc<- setdiff(names(df), field)
+df.disc <- gather(df.withnona %>% select(disc))
+ggplot(data=df.disc,mapping=aes(x=value)) +
+  geom_bar(fill="deeppink3") +
+  facet_wrap(~key,scales='free')
+```
+From this it can be concluded that if you drop all the rows that have null values then a lot of rows which are part of study four have been removed which could cause you to think that it would be a good reason to remove the study group four. Also just like previously there is only a singular point in demo_firstgen that has value 2 so that value can be removed as it is an outlier.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

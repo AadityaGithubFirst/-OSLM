@@ -46,11 +46,11 @@ We use the third option in most cases wherein there are very few rows that are n
 ```{r}
 sapply(df, function(x) sum(is.na(x)))
 ```
-As it can be seen that term_units and zterm_units_ZofZ are both having a lot of null value we could drop these two rows. This is there being around 634 observations and if we were to remove 147 rows of this data it could cause some problems as the size fo the dataset is already so small. 
-On top of that we also know that they are continuous variables making them difficult to easily impute with accurate values this is because of the fact that those points can become a little bit skewed.
-Also rather than removing the row that has the demo_race and demo_gender row I have imputed it with the median value as the number that is missing is so low that it will not cause major skewing. Also on top that both values can be seen to be discrete variables. Which means that I can't take the mean value and replace it with that because of the fact then there will be definite problems that could arise.
-I also found that the cohort column is a character column which is going to make it difficult to find the correlation matrix for the dataset. Also the reason we can replace the values with integers is because of the fact that the cohort column is a discrete column which means that there is only a finite set of values and there is no range of values.
-After doing all of this I then check again if there are any null values present in the dataset. 
+As it can be seen that term_units and zterm_units_ZofZ are both having a lot of null value we could drop these two rows. This is because there are around 634 observations and if we were to remove 147 rows of data it could cause some problems as the size fo the dataset is already so small. 
+On top of that we also know that they are continuous variables making them difficult to easily impute with accurate values.
+But I did perform imputations on the rows demo_race and demo_gender which I have imputed with the median value as the number of missing values is so low that it will cause little skewing to the data. The main reason I used median instead of mean for doing the imputation is because these rows are both discrete rows so it would be better suited to having a median number rather than the mean that could be any number that is in between the two numbers. 
+I also found that the cohort column is a character column which is going to make it difficult to find the correlation matrix for the dataset. As a result I have replaced all the values in the cohort column with number this is due to cohort having a finite set of values (being discrete) so factoring it was possible.
+I then checked my dataset to see if there were any null values that were remaining.
 
 ```{r}
 df = subset(df, select = -c(term_units, Zterm_units_ZofZ, subject_id))
@@ -68,7 +68,7 @@ ggplot(data=df.quant,mapping=aes(x=value)) +
   geom_histogram(fill="deepskyblue3",bins=30) +
   facet_wrap(~key,scales='free')
 ```
-From these graphs it can be seen that some of the values in the graph are not present which is causing some skewing in the data. In the first graph it can be seen that a lot of the responses in that tab is that people have not missed a single bedtime. This is causing the graph to come out as very skewed towards the left. 
+From these graphs it can be seen that some of the values in the graph are not present which is causing some skewing in the data. In the first graph it can be seen that a lot of the responses in that tab show people having not missed a single bedtime which is causing the graph to skew left. 
 Now to plot the graphs of those values that are discrete
 ```{r}
 disc<- setdiff(names(df), field)
@@ -78,10 +78,11 @@ ggplot(data=df.disc,mapping=aes(x=value)) +
   facet_wrap(~key,scales='free')
 ```
 
-From this graph it can be seen that there are very few rows that have a value of 2 in demo_firstgen.
+From the second graph it can be seen that there are very few rows that have a value of 2 in demo_firstgen.
 Therefore it could be proposed that all rows in the table wherein which the demo_firstgen is 2 can be dropped. But it could also be replaced (imputed) with another value so as to actually save that data
 ```{r}
-df.new<-scale(df)
+df.quant<-df %>% select(setdiff(field,"cum_gpa"))
+df.new<-scale(df.quant)
 correl<- cor(df.new)
 corrplot(correl, method = "square")
 corrplot(correl, method = "number")
@@ -120,14 +121,20 @@ ggplot(data=df.disc,mapping=aes(x=value)) +
   facet_wrap(~key,scales='free')
 ```
 
-From this it can be concluded that if you drop all the rows that have null values then a lot of rows which are part of study four have been removed which could cause you to think that it would be a good reason to remove the study group four. Also just like previously there is only a singular point in demo_firstgen that has value 2 so that value can be removed as it is an outlier.
+From this it can be concluded that if you drop all the rows that have null values then a lot of rows which are part of study four have been removed which could cause you to think that it would be a good reason to remove the study group four. Also just like previously there is only a singular point in demo_firstgen that has value 2 so that value can be removed as it is an outlier. Also it means that 
 
 
 
+```{r}
+df.quant<-df.withnona %>% select(setdiff(field,"cum_gpa"))
+df.new<-scale(df.quant)
+correl<- cor(df.new)
+corrplot(correl, method = "square")
+corrplot(correl, method = "number")
+```
 
 
-
-
+F
 
 
 

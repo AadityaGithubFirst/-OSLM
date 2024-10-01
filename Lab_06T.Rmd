@@ -1,0 +1,111 @@
+---
+title: "Lab: Variable Selection"
+author: "36-600"
+output: 
+  html_document:
+    toc: no
+    toc_float: no
+    theme: spacelab
+---
+
+## Data
+
+We'll begin by importing the heart-disease dataset and log-transforming the response variable, `Cost`. Also, so that the dataset "plays well" with `bestglm` later, we will change the name `Cost` to `y` and put `y` last.
+```{r}
+suppressMessages(library(tidyverse))
+df      <- read.csv("http://www.stat.cmu.edu/~pfreeman/heart_disease.csv",stringsAsFactors=TRUE)
+df      <- df[,-10]
+w       <- which(df$Cost > 0)
+df      <- df[w,]
+df$Cost <- log(df$Cost)
+df$y    <- df$Cost       # create a new column on the fly
+df %>% select(.,-Cost) -> df
+summary(df)
+```
+
+## Question 1
+
+Split the data into training and test sets. Call these `df.train` and `df.test`. Assume that 70% of the data will be used to train the linear regression model. Recall that
+```
+s <- sample(nrow(df),round(0.7*nrow(df)))
+```
+will randomly select the rows for training. Also recall that
+```
+df[s,] and df[-s,]
+```
+are ways of filtering the data frame into the training set and the test set, respectively. (Remember to set the random number seed!)
+```{r}
+set.seed(100)
+s<- sample(nrow(df), round(0.7*nrow(df)))
+df.train<-df[s, ]
+df.test<- df[-s,]
+```
+
+## Question 2
+
+Perform a multiple linear regression analysis, regressing `y` upon all the other variables, and compute the mean-squared error. Also print out the adjusted $R^2$ value; if you call the output from your linear regression function call `lm.out`, then what you'd print out is `summary(lm.out)$adj.r.squared`
+```{r}
+lm.out<- lm(y~., data = df.train)
+mean((predict(lm.out,newdata=df.test)-df.test$y)^2)
+summary(lm.out)$adj.r.squared
+```
+
+---
+
+## Question 3
+
+Install the `bestglm` package, if you do not have it installed already. Then load that library and use the function `bestglm()` to perform best subset selection on the training data. Do both AIC and BIC...and for each, display the best model. How many predictor variables are retained in the best models? (Don't include the intercepts.) Do the relative numbers of variables abide by your expectations? Is one model a subset of the other? (Hint: see the documentation for `bestglm()` and look at the part under "Value"...this describes the `R` object that `bestglm()` returns. The best model is included within that object. Let `bg.bic` be your output from `bestglm()` for BIC, and `bg.aic` be the output for AIC. If the documentation states that `xx` is the element of the output that contains the best model, then simply print, e.g., `bg.bic$xx`. In the end, what gets returned from functions is either a vector [not here!] or a list. If you need to know the names of the elements of the list, type, e.g., `names(bg.bic)`. Doing that here might be helpful: the element with the best model might jump out at you!)
+```{r}
+suppressMessages(library(bestglm))
+bg.bic<-bestglm(df.train, family = gaussian, IC = "BIC")
+bg.aic<-bestglm(df.train, family = gaussian, IC = "AIC")
+bg.aic$Subsets
+bg.bic$BestModel
+bg.aic$BestModel
+```
+```
+In bg.bic there are 5 variables that are retained whereas the number of variables in bg.aic is 6. From applying the Subsets attribute to bg bic it can be seen that 1 is a subset of every  single row as 1 does not contain anything. Also everything is a subset of 8. The same is true for when susbsets is applied on aic. The number of variables produced by bic and aic is what I expected. I expected to see that some of the variables to be dropped due to maybe having high correlation with one another or no correlation at all to the entire set.
+```
+
+## Question 4
+
+The output of `bestglm()` contains, as you saw above, a best model. According to the documentation for `bestglm()`, this list element is "[a]n lm-object representing the best fitted algorithm." That means you can pass it to `predict()` in order to generate predicted response values (where the response is in the `y` column of your data frames). Given this information: generate mean-squared error values for the BIC- and AIC-selected models. Are these values larger or smaller than the value you got for linear regression?
+```{r}
+bg.bic.pred<-predict(bg.bic$BestModel, newdata = df.test)
+bg.aic.pred<-predict(bg.aic$BestModel, newdata = df.test)
+mean((df.test$y-bg.bic.pred)^2)
+mean((df.test$y-bg.aic.pred)^2)
+```
+```
+From the mean squared error values calculated over here it can be seen that the values produced by the bic and aic models are very similar to the value gotten for mean squared error in the linear fit model. There is only a slight discrepancy with the mean squared error produced by the bic, aic and linear fit. The value produced by bic is slightly more than linear fit and the value produced by aic is slightly less than aic. From documents that I have read on the internet I can see that because of the fact that the value produced by bg.bic is higher that means that the model used by bic is a much better fit. 
+The source: https://statisticsbyjim.com/regression/interpret-r-squared-regression/
+```
+
+---
+
+Here is code that allows you to visualize, e.g., the BIC as a function of number of variables. Note that in this example, `bg.bic` is the output of `bestglm(...,IC="BIC")`. This is just FYI: if you ever use variable selection in practice, you might find this visualizer useful.
+
+```{r}
+bic    <- bg.bic$Subsets["BIC"]
+df.bic <- data.frame("p"=1:ncol(df.train)-1,"BIC"=bic[,1])
+
+g <- ggplot(data=df.bic,mapping=aes(x=p,y=BIC)) + 
+       geom_point(size=1.5,color="blue") + 
+       geom_line(color="blue") + 
+       ylim(min(bic),min(bic+100))  # a quick and dirty way to try to hone in on the right range to see minimum
+suppressWarnings(print(g)) # a way to get around pesky ggplot warnings
+```
+
+---
+
+## Question 5
+
+Run the `summary()` function with the best BIC model from above. This produces output akin to that of the output from summarizing a linear model (e.g., one output by `lm()`). What is the adjusted $R^2$ value? What does the value imply about the quality of the linear fit with the best subset of variables?
+```{r}
+summary(bg.bic$BestModel)$adj.r.squared
+```
+```
+Adjusted r squared is a version of r-squared that has been adjusted based on the number of predictors present in the given model. From the values of adjusted r-squared produced by the model it can be seen that the value of adjusted r squared produced by bic is less than the value of adjusted r squared produced by the linear fit. This means that the linear fit is the better fit overall.
+
+(Source: https://www.investopedia.com/ask/answers/012615/whats-difference-between-rsquared-and-adjusted-rsquared.asp#toc-adjusted-r-squared) 
+```

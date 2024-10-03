@@ -31,6 +31,7 @@ But also, in short, this is a dataset where the data would appear to reside in a
 Construct a `corrplot` for `df`. Do the data appear to be correlated? (Just answer that question to yourself, no need to write anything down.) Note that adding the variable names leads to a "squashed" correlation plot. Since here you are simply visually assessing whether the data are correlated, without having to identify individual variables, I would suggest adding the argument `tl.pos="n"` to the `corrplot()` call. (Note: how did I figure out how to do this? I looked in the documentation, didn't immediately see how to remove variable names, and Googled. StackOverflow had the answer. Never stop Googling!)
 ```{r}
 set.seed(100)
+suppressMessages(library(dplyr))
 q<-setdiff(names(df), "response")
 suppressMessages(library(corrplot))
 correl<-cor(select(df, q))

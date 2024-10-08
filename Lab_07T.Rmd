@@ -159,5 +159,5 @@ which group or groups differ from the others? Which do we conclude have the same
 TukeyHSD(aov(Y~x, data = df))
 ```
 ```
-From this it can be seen that group 0 has a higher difference from group 1 and group 2 but group 1 and group 2 does not have a high significantly differenct means.
+From this it can be seen that group 0 has a higher difference from group 1 and group 2 but group 1 and group 2 does not have significantly differenct means.
 ```

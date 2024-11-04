@@ -1,0 +1,169 @@
+---
+title: "Project_2"
+author: "Aaditya Hari Nair"
+date: "2024-10-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Loading the libraries and setting a seed as well as reading into the csv file. 
+
+```{r}
+suppressMessages(library(tidyverse))
+set.seed(100)
+df<- read.csv("stellar_temperature.csv")
+summary(df)
+```
+```
+From the data provided in the project 2 description it can be seen that all the columns present in the dataset is required to perform regression.
+I have decided that I plan to split the dataset into a 70-30 split with 70 percent of the data going to the training dataset and 30 percent going to the test dataset.
+```
+```{r}
+s <- sample(nrow(df), round(0.7*nrow(df)))
+df.train <- df[s,]
+df.test <- df[-s,]
+```
+```
+Now to perform linear regression on the train dataset and plotting a graph showing the difference between the teff predicted and the teff itself.
+```
+```{r  fig.align='center',fig.width=4,fig.height=4}
+lm.out <- lm(teff~.,data=df.train)
+summary(lm.out)
+teff.pred <- predict(lm.out, newdata = df.test)
+df.plot<- data.frame("x"=df.test$teff-teff.pred)
+ggplot(data=df.plot, mapping = aes(x=x))+
+  geom_histogram(bins = 20)+
+  xlim(-1000, 1000)
+```
+```{r}
+shapiro.test(df.plot$x)
+```
+Because of the fact that the value of p from the Shapiro-Wilk test is much less than 0.05 we can say that we fail to reject the null hypothesis.
+
+```{r fig.align='center',fig.width=4,fig.height=4}
+df.plot <- data.frame("x"=teff.pred, "y" = df.test$teff)
+ggplot(df.plot, mapping = aes(x = x, y = y), xlab = "Model Fitted values", ylab = "Model Residuals")+
+  geom_point(color = "lightblue")+
+  geom_abline(slope =  1, color = "red")
+```
+From inspecting this graph it can be said that the variance around the regression line is roughly sigma squared.
+
+```{r  fig.align='center',fig.width=4,fig.height=4}
+suppressMessages(library(car))
+ncvTest(lm.out)
+mean((df.test$teff-teff.pred)^2)
+mean((df.test$teff-teff.pred)^2)^0.5
+q<-setdiff(names(df), "teff")
+suppressMessages(library(corrplot))
+correl<-cor(select(df, q))
+corrplot(correl)
+```
+From the value of adjusted R-squared it can be seen that the value of R^2 and root R^2 is very high. The values should to be so high and should be closer to zero but these values produced is very high comparatively. From this it could be said that other models might be better.
+
+From this plot it can be seen that the variables b_mag, g_mag and r_mag are highly correlated having a correlation which is very close to one. Due to this I plan on dropping the columns b_mag and r_mag and only keeping g_mag. This is because of the fact that when the correlation between two variables is one that means that there is literally no difference between the two variables. So I shall perform Dimensionality Reduction.
+
+```{r  fig.align='center',fig.width=4,fig.height=4}
+q<-setdiff(names(df), c("b_mag", "r_mag"))
+df.new<-df[q]
+df.new.train <- df.new[s,]
+df.new.test <- df.new[-s,]
+lm.out<- lm(teff~., df.new.train)
+teff.pred <- predict(lm.out, newdata = df.new.test)
+mean((df.new.test$teff-teff.pred)^2)
+mean((df.new.test$teff-teff.pred)^2)^0.5
+pr.out<- prcomp(x = df, scale = TRUE)
+pr.var<- pr.out$sdev^2
+pve <- pr.var / sum(pr.var)
+cumsum(pve)
+suppressMessages(library(car))
+vif(lm.out)
+summary(AIC(lm.out))
+pve<- data.frame(pve)
+ggplot(data  = pve)+ geom_point(mapping = aes(x = 1:length(pve), y=cumsum(pve)))
+```
+
+
+
+```{r  fig.align='center',fig.width=4,fig.height=4}
+df.plot<- data.frame("x"=df.new.test$teff-teff.pred)
+ggplot(data=df.plot, mapping = aes(x=x))+
+  geom_histogram(bins = 20)+
+  xlim(-1000, 1000)
+```
+```{r}
+w<- which(names(df)=="teff")
+y<- df[,w]
+df<-df[,-w]
+df<-data.frame(df, "y" = y)
+results <- prcomp(df, scale = TRUE)
+PC1<-results$x[, 1]
+results$sdev^2 / sum(results$sdev^2)
+```
+```{r}
+library(leaps)
+names(df.new)[names(df.new) == "teff"] <- "y"
+df.new.train <- df.new[s,]
+df.new.test <- df.new[-s,]
+predictors <- colnames(df.new)[colnames(df.new) != "y"]
+best_subset <- regsubsets(y ~ ., data = df.new.train, nvmax = length(predictors))
+summary(best_subset)
+which.min(summary(best_subset)$bic)
+best_model_predictors <-names(coef(best_subset, which.min(summary(best_subset)$bic)))[-1]
+best_model_formula <- as.formula(paste("y ~", paste(best_model_predictors, collapse = " + ")))
+best_model <- lm(best_model_formula, data = df.new.train)
+bss_predictions <- predict(best_model, newdata = df.new.test)
+bss_mse <- mean((df.new.test$y - bss_predictions)^2)
+```
+```
+From the values of the MSE of the best model it can be said that finding the best value for the given data-set is actually helpful and has reduced the value of MSE by about 8000.
+```
+
+```{r}
+pca_model <- prcomp(df.new.train[, predictors], center = TRUE, scale. = TRUE)
+explained_variance <- summary(pca_model)$importance[2,]
+cumulative_variance <- cumsum(explained_variance)
+num_pcs <- which(cumulative_variance >= 0.9)[1]
+train_pcs <- as.data.frame(pca_model$x[, 1:num_pcs])
+test_pcs <- predict(pca_model, newdata = df.new.test[, predictors])[, 1:num_pcs]
+train_pcs$y <- df.new.train$y
+test_pcs <- as.data.frame(test_pcs)
+test_pcs$y <- df.new.test$y
+pc_model <- lm(y ~ ., data = train_pcs)
+pc_predictions <- predict(pc_model, newdata = test_pcs)
+pc_mse <- mean((test_pcs$y - pc_predictions)^2)
+full_model <- lm(y ~ ., data = df.new.train)
+full_predictions <- predict(full_model, newdata = df.new.test)
+full_mse <- mean((df.new.test$y - full_predictions)^2)
+pc_mse
+full_mse
+bss_mse
+```
+There is very little difference between the three MSE's. The best subset model though has a a tiny bit lower MSE than the other two.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

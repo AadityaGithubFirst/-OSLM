@@ -39,6 +39,10 @@ pr.out <- lm(y~poly(x,3,raw=TRUE),data=df,
 weights=1/(e^2))
 pr.pred <- predict(pr.out)
 mean((y-pr.pred)^2)
+suppressMessages(library(tidyverse))
+ggplot(data=df,mapping=aes(x=x,y=y)) +
+  geom_errorbar(aes(ymin=y-e, ymax=y+e), width=.1,color="blue") +
+  geom_point(color="firebrick")
 ```
 
 ## Question 2

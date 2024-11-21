@@ -1,0 +1,225 @@
+---
+title: "Project-3"
+author: "Aaditya Hari Nair"
+date: "2024-11-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+df<-read.csv("wineQuality.csv")
+set.seed(100)
+nrow(df)
+ncol(df)
+s<-sample(0.8*nrow(df))
+df.train<-df[s,]
+df.test<- df[-s,]
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+wine_data <- read.csv("wineQuality.csv")
+summary(wine_data)
+sum(is.na(wine_data))
+ggplot(wine_data, aes(x = label)) +
+  geom_bar() +
+  ggtitle("Distribution of Wine Quality")
+cor_matrix <- cor(wine_data[, 1:11])
+print(cor_matrix)
+numeric_vars <- names(wine_data)[1:11]
+for (var in numeric_vars) {
+  p <- ggplot(wine_data, aes_string(y = var)) +
+    geom_boxplot() +
+    ggtitle(paste("Boxplot of", var))
+  print(p)
+}
+anomalies <- wine_data %>%
+  filter(density > 3 | pH > 4 | alcohol > 15)
+wine_data_clean <- wine_data %>%
+  filter(density <= 3 & pH <= 4 & alcohol <= 15)
+dim(wine_data_clean)
+ggplot(wine_data_clean, aes(x = alcohol)) +
+  geom_histogram(bins = 30) +
+  ggtitle("Distribution of Alcohol Content")
+wine_data_clean$log_alcohol <- log(wine_data_clean$alcohol)
+p1 <- ggplot(wine_data_clean, aes(x = alcohol)) +
+  geom_histogram(bins = 30) +
+  ggtitle("Original Alcohol Distribution")
+
+p2 <- ggplot(wine_data_clean, aes(x = log_alcohol)) +
+  geom_histogram(bins = 30) +
+  ggtitle("Log-transformed Alcohol Distribution")
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+library(tidyverse)
+library(caret)
+library(pROC)
+wine_data <- read.csv("wineQuality.csv")
+
+
+wine_data$label <- ifelse(wine_data$label == "GOOD", 1, 0)
+
+# Split data into training and test sets (70% train, 30% test)
+set.seed(123)  # For reproducibility
+trainIndex <- createDataPartition(wine_data$label, p = 0.7, list = FALSE)
+train_data <- wine_data[trainIndex, ]
+test_data <- wine_data[-trainIndex, ]
+
+# Fit logistic regression model
+log_model <- glm(label ~ ., data = train_data, family = binomial)
+
+# Predict probabilities on the test set
+test_prob <- predict(log_model, newdata = test_data, type = "response")
+
+# Generate ROC curve and calculate AUC
+roc_curve <- roc(test_data$label, test_prob)
+auc_value <- auc(roc_curve)
+
+# Plot ROC curve
+plot(roc_curve, col = "blue", main = paste("ROC Curve (AUC =", round(auc_value, 2), ")"))
+
+# Calculate Youden's J statistic to find optimal threshold
+youden_index <- which.max(roc_curve$sensitivities + roc_curve$specificities - 1)
+optimal_threshold <- roc_curve$thresholds[youden_index]
+
+# Print AUC and optimal threshold
+print(paste("AUC:", round(auc_value, 2)))
+print(paste("Optimal Threshold (Youden's J):", round(optimal_threshold, 2)))
+
+# Classify based on optimal threshold
+test_pred_class <- ifelse(test_prob > optimal_threshold, 1, 0)
+
+# Confusion matrix
+conf_matrix <- table(Predicted = test_pred_class, Actual = test_data$label)
+print(conf_matrix)
+
+# Misclassification rate
+misclassification_rate <- mean(test_pred_class != test_data$label)
+print(paste("Misclassification Rate:", round(misclassification_rate, 4)))
+
+```
+
+```{r}
+
+# Load necessary libraries
+# Load necessary libraries
+library(tidyverse)
+library(caret)
+library(pROC)
+library(xgboost)
+library(caret)
+# Load the dataset
+wine_data <- read.csv("wineQuality.csv")
+
+# Convert target variable to binary (assuming 'GOOD' = 1 and 'BAD' = 0)
+wine_data$label <- ifelse(wine_data$label == "GOOD", 1, 0)
+
+# Split data into training and test sets (70% train, 30% test)
+set.seed(123)  # For reproducibility
+trainIndex <- createDataPartition(wine_data$label, p = 0.7, list = FALSE)
+train_data <- wine_data[trainIndex, ]
+test_data <- wine_data[-trainIndex, ]
+
+dtrain <- xgb.DMatrix(data = as.matrix(train_data), label = train_data$label)
+dtest <- xgb.DMatrix(data = as.matrix(test_data), label = test_data$label)
+# Fit logistic regression model
+params <- list(
+  objective = "binary:logistic",
+  eta = 0.1,
+  max_depth = 6,
+  min_child_weight = 1,
+  subsample = 0.8,
+  colsample_bytree = 0.8
+)
+
+xgb_model <- xgb.train(
+  params = params,
+  data = dtrain,
+  nrounds = 100,
+  watchlist = list(train = dtrain, test = dtest),
+  early_stopping_rounds = 10,
+  verbose = 1
+)
+
+
+# Predict probabilities on the test set
+test_prob <- predict(log_model, newdata = test_data, type = "response")
+
+# Generate ROC curve and calculate AUC
+roc_curve <- roc(test_data$label, test_prob)
+auc_value <- auc(roc_curve)
+
+
+plot(roc_curve, main = paste("ROC Curve (AUC =", round(auc_value, 2), ")"))
+
+# Calculate Youden's J statistic to find optimal threshold
+youden_index <- which.max(roc_curve$sensitivities + roc_curve$specificities - 1)
+optimal_threshold <- roc_curve$thresholds[youden_index]
+
+# Print AUC and optimal threshold
+print(paste("AUC:", round(auc_value, 2)))
+print(paste("Optimal Threshold (Youden's J):", round(optimal_threshold, 2)))
+
+# Classify based on optimal threshold
+test_pred_class <- ifelse(test_prob > optimal_threshold, 0, 1)
+
+# Confusion matrix
+conf_matrix <- table(Predicted = test_pred_class, Actual = test_data$label)
+print("Confusion Matrix:")
+print(conf_matrix)
+
+# Misclassification rate
+misclassification_rate <- mean(test_pred_class != test_data$label)
+print(paste("Misclassification Rate:", round(misclassification_rate, 4)))
+
+```
+```{r}
+suppressMessages(library(randomForest))
+set.seed(101)
+rf.out    <- randomForest(label~.,data=train_data,importance=TRUE)
+resp.pred <- predict(rf.out,newdata=test_data)
+(rf.mse   <- mean((resp.pred-test_data$label)^2))
+varImpPlot(rf.out,type=1,pch=19,col="red")
+```
+```{r}
+train_data %>% dplyr::select(.,-density, -alcohol) -> df.train
+test_data  %>% dplyr::select(.,-density, -alcohol) -> df.test
+resp.train <- df.train[,1]
+resp.test  <- df.test[,1]
+pred.train <- df.train[,-1]
+pred.test  <- df.test[,-1]
+train <- xgb.DMatrix(data=as.matrix(pred.train),label=resp.train)
+test  <- xgb.DMatrix(data=as.matrix(pred.test),label=resp.test)
+set.seed(101)
+xgb.cv.out <- xgb.cv(params=list(objective="reg:squarederror"),train,nrounds=30,nfold=5,verbose=0)
+cat("The optimal number of trees is ",which.min(xgb.cv.out$evaluation_log$test_rmse_mean),"\n")
+xgb.out   <- xgboost(train,nrounds=which.min(xgb.cv.out$evaluation_log$test_rmse_mean),params=list(objective="reg:squarederror"),verbose=0)
+resp.pred <- predict(xgb.out,newdata=test)
+round(mean((resp.pred-resp.test)^2),3)
+suppressMessages(library(pROC))
+roc.rf <- suppressMessages(roc(df.test$label,resp.pred))
+plot(roc.rf,col="red",xlim=c(1,0),ylim=c(0,1))
+cat("AUC for random forest:       ",roc.rf$auc,"\n")
+J          <- roc.rf$sensitivities + roc.rf$specificities - 1
+w          <- which.max(J)
+(threshold <- roc.rf$thresholds[w])
+pred.rf    <- ifelse(resp.pred>threshold, 1,0)
+table(pred.rf,df.test$label)
+mean(pred.rf!=df.test$label)
+```
+
